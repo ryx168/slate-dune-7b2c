@@ -1,0 +1,70 @@
+name: seedance
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: prompt file under prompts/ (or "all")
+        default: all
+      model:
+        description: mini | fast | std | 2.5
+        default: mini
+      resolution:
+        description: 480p | 720p | 1080p
+        default: 720p
+      duration:
+        description: seconds 4-15
+        default: "10"
+      audio:
+        description: let Seedance generate dialogue + sound
+        type: boolean
+        default: true
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ARK_API_KEY: ${{ secrets.ARK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Plan or render
+        shell: bash
+        run: |
+          set -e
+          if [ "${{ inputs.prompt }}" = all ]; then files=$(ls prompts/*.txt); else files="prompts/${{ inputs.prompt }}"; fi
+          args="--model ${{ inputs.model }} --resolution ${{ inputs.resolution }} --duration ${{ inputs.duration }} --out-dir out"
+          [ "${{ inputs.audio }}" = true ] && args="$args --audio"
+          if [ -z "$ARK_API_KEY" ]; then
+            echo "::warning::repo secret ARK_API_KEY is not set; printing the plan only, nothing is spent"
+            for f in $files; do echo "== $f"; python run_seedance.py "$f" $args; done
+            exit 0
+          fi
+          for f in $files; do echo "== $f"; python run_seedance.py "$f" $args --execute; done
+      - name: Join clips
+        if: env.ARK_API_KEY != ''
+        shell: bash
+        run: |
+          set -e
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          i=0; : > out/list.txt
+          for f in prompts/*.txt; do
+            n=$(basename "$f" .txt); i=$((i+1))
+            # the mp4 written for this prompt is the newest one at the time; rename by prompt order
+            true
+          done
+          ls -t out/*.mp4 2>/dev/null | tac | nl -w1 -s' ' | while read k p; do mv "$p" "out/clip${k}.mp4"; echo "file 'clip${k}.mp4'" >> out/list.txt; done
+          if [ -s out/list.txt ]; then (cd out && ffmpeg -loglevel error -y -f concat -safe 0 -i list.txt -c copy film.mp4); fi
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: seedance-run-${{ github.run_number }}
+          path: out/
+          if-no-files-found: ignore
+      - name: Release
+        if: env.ARK_API_KEY != ''
+        env: { GH_TOKEN: ${{ github.token }} }
+        run: gh release create run-${{ github.run_number }} out/*.mp4 -t "Seedance run ${{ github.run_number }}" -n "model=${{ inputs.model }} res=${{ inputs.resolution }} dur=${{ inputs.duration }}s audio=${{ inputs.audio }}"
