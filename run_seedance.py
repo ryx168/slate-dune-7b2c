@@ -3,7 +3,7 @@ r"""Seedance 2.0 runner (BytePlus ModelArk), stdlib only.
 
   python run_seedance.py prompts/shot1_villain_reveal.txt             # plan + price, no spend
   python run_seedance.py prompts/shot1_villain_reveal.txt --execute   # one paid job
-  python run_seedance.py --resume out/<task-id>.json                  # poll/download again, no new spend
+  python run_seedance.py --resume out/<shot>.json                  # poll/download again, no new spend
 
 Key: ARK_API_KEY in the environment, else "ARK_API_KEY" in
 %APPDATA%\agent-sprite-forge\config.json (the same file the Forge skills read).
@@ -57,7 +57,7 @@ def download(url, dest):
                 break
             f.write(chunk)
 
-def poll(task_id, key, out_dir, interval, timeout):
+def poll(task_id, key, out_dir, interval, timeout, name=None):
     t0 = time.time()
     while True:
         st, res = call("GET", f"/content_generation/tasks/{task_id}", key)
@@ -65,9 +65,11 @@ def poll(task_id, key, out_dir, interval, timeout):
         print(f"[{int(time.time()-t0):4d}s] {status}", file=sys.stderr)
         if status == "succeeded":
             url = res["content"]["video_url"]
-            dest = os.path.join(out_dir, f"{task_id}.mp4")
+            stem = name or task_id
+            dest = os.path.join(out_dir, f"{stem}.mp4")
             download(url, dest)
-            with open(os.path.join(out_dir, f"{task_id}.json"), "w", encoding="utf-8") as f:
+            with open(os.path.join(out_dir, f"{stem}.json"), "w", encoding="utf-8") as f:
+                res["id"] = task_id; res["name"] = stem
                 json.dump(res, f, indent=2)
             print(json.dumps({"status": "done", "file": dest, "usage": res.get("usage")}))
             return 0
@@ -103,8 +105,8 @@ def main():
         if not key:
             sys.exit("error: no ARK_API_KEY")
         with open(a.resume, encoding="utf-8") as f:
-            task_id = json.load(f)["id"]
-        sys.exit(poll(task_id, key, a.out_dir, a.poll_interval, a.timeout))
+            j = json.load(f)
+        sys.exit(poll(j["id"], key, a.out_dir, a.poll_interval, a.timeout, j.get("name")))
 
     if not a.prompt_file:
         ap.error("prompt_file required (or --resume)")
@@ -133,10 +135,11 @@ def main():
         print(json.dumps({"status": "failed", "httpStatus": st, "error": res.get("error", res)}))
         sys.exit(1)
     task_id = res["id"]
-    with open(os.path.join(a.out_dir, f"{task_id}.json"), "w", encoding="utf-8") as f:
-        json.dump({"id": task_id, "request": body, "estimateUsd": est, "submittedAt": time.time()}, f, indent=2)
+    stem = os.path.splitext(os.path.basename(a.prompt_file))[0]
+    with open(os.path.join(a.out_dir, f"{stem}.json"), "w", encoding="utf-8") as f:
+        json.dump({"id": task_id, "name": stem, "request": body, "estimateUsd": est, "submittedAt": time.time()}, f, indent=2)
     print(f"task {task_id} submitted (est ${est})", file=sys.stderr)
-    sys.exit(poll(task_id, key, a.out_dir, a.poll_interval, a.timeout))
+    sys.exit(poll(task_id, key, a.out_dir, a.poll_interval, a.timeout, stem))
 
 if __name__ == "__main__":
     main()
