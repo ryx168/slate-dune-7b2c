@@ -29,7 +29,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
+        with:
+          python-version: "3.12"
       - name: Plan or render
         shell: bash
         run: |
@@ -61,5 +62,6 @@ jobs:
           if-no-files-found: ignore
       - name: Release
         if: env.ARK_API_KEY != ''
-        env: { GH_TOKEN: ${{ github.token }} }
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: gh release create run-${{ github.run_number }} out/*.mp4 -t "Seedance run ${{ github.run_number }}" -n "model=${{ inputs.model }} res=${{ inputs.resolution }} dur=${{ inputs.duration }}s audio=${{ inputs.audio }}"
