@@ -44,7 +44,7 @@ jobs:
           if [ "${{ inputs.prompt }}" = all ]; then files=$(ls prompts/*.txt); else files="prompts/${{ inputs.prompt }}"; fi
           args="--model ${{ inputs.model }} --resolution ${{ inputs.resolution }} --duration ${{ inputs.duration }} --ratio ${{ inputs.ratio }} --out-dir out"
           [ "${{ inputs.audio }}" = true ] && args="$args --audio"
-          IFS=, ; for u in ${{ inputs.refs }}; do [ -n "$u" ] && args="$args --ref $u"; done; unset IFS
+          REFS="${{ inputs.refs }}"; IFS=,; for u in $REFS; do [ -n "$u" ] && args="$args --ref $u"; done; unset IFS
           if [ -z "$ARK_API_KEY" ]; then
             echo "::warning::repo secret ARK_API_KEY is not set; printing the plan only, nothing is spent"
             for f in $files; do echo "== $f"; python run_seedance.py "$f" $args; done
