@@ -18,6 +18,12 @@ on:
         description: let Seedance generate dialogue + sound
         type: boolean
         default: true
+      ratio:
+        description: 16:9 | 21:9 | 9:16 | 1:1 | adaptive
+        default: "16:9"
+      refs:
+        description: optional reference image URLs, comma-separated (Image 1, Image 2 ... in the prompt)
+        default: ""
 permissions:
   contents: write
 jobs:
@@ -36,8 +42,9 @@ jobs:
         run: |
           set -e
           if [ "${{ inputs.prompt }}" = all ]; then files=$(ls prompts/*.txt); else files="prompts/${{ inputs.prompt }}"; fi
-          args="--model ${{ inputs.model }} --resolution ${{ inputs.resolution }} --duration ${{ inputs.duration }} --out-dir out"
+          args="--model ${{ inputs.model }} --resolution ${{ inputs.resolution }} --duration ${{ inputs.duration }} --ratio ${{ inputs.ratio }} --out-dir out"
           [ "${{ inputs.audio }}" = true ] && args="$args --audio"
+          IFS=, ; for u in ${{ inputs.refs }}; do [ -n "$u" ] && args="$args --ref $u"; done; unset IFS
           if [ -z "$ARK_API_KEY" ]; then
             echo "::warning::repo secret ARK_API_KEY is not set; printing the plan only, nothing is spent"
             for f in $files; do echo "== $f"; python run_seedance.py "$f" $args; done

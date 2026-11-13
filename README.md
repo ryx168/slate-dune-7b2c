@@ -6,18 +6,21 @@ Cell, Buu, Android 18 and Vegeta on a ruined highway). `prompts/` rebuilds that 
 shot-for-shot with original characters so moderation does not refuse trademarked ones.
 
 ## One-time setup (repo owner)
-1. BytePlus account at https://console.byteplus.com with at least USD 30 balance
-   (Seedance 2.0 models cannot be activated below that).
-2. Activate the Seedance 2.0 models in ModelArk, create a key at
+1. BytePlus account at https://console.byteplus.com, verified.
+2. Buy a Seedance 2.0 resource pack in ModelArk. The 2M free video tokens a new
+   account gets do NOT cover Seedance 2.0; the 2.0 models only activate while a
+   pack with remaining quota exists (BytePlus also asks for USD 30+ balance).
+3. Activate the Seedance 2.0 models in ModelArk, create a key at
    https://ai.byteplus.com/ark/region:ap-southeast-1/apikey
-3. Repo secret `ARK_API_KEY` (Settings > Secrets and variables > Actions).
+4. Repo secret `ARK_API_KEY` (Settings > Secrets and variables > Actions).
 
 Without the secret the workflow prints the plan and price and spends nothing.
 
 ## Run
 Actions > seedance > Run workflow, or:
 ```
-gh workflow run seedance.yml -R ryx168/slate-dune-7b2c -f prompt=all -f model=mini -f resolution=720p -f duration=10 -f audio=true
+gh workflow run seedance.yml -R ryx168/slate-dune-7b2c -f prompt=all -f model=mini -f resolution=720p -f duration=10 -f audio=true -f ratio=16:9
+# optional: -f refs="https://.../hero.png,https://.../villain.png"  (Image 1, Image 2 in the prompt)
 ```
 Output: artifact `seedance-run-<n>` and release `run-<n>` with the clips and `film.mp4`.
 
